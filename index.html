@@ -640,7 +640,7 @@ async function startSession() {
   neg.style.display = 'flex';
 
   document.getElementById('userInput').value = '';
-  document.getElementById('userInput').disabled = true;
+  document.getElementById('userInput').disabled = false;
   document.getElementById('sendBtn').disabled = true;
 
   // Get opening move from AI
@@ -856,7 +856,6 @@ async function endSession() {
 
 // ── UI HELPERS ────────────────────────────────────────────────────────────────
 function setInputEnabled(v) {
-  document.getElementById('userInput').disabled = !v;
   document.getElementById('sendBtn').disabled = !v;
 }
 
