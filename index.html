@@ -231,6 +231,10 @@
     <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." />
     <p class="modal-note">Получить ключ: console.anthropic.com → API Keys</p>
     <button class="btn-primary" id="saveApiKey">Начать</button>
+    <div style="text-align:center;margin-top:16px;">
+      <button class="btn-secondary" id="demoMode" style="width:100%;justify-content:center;">🎭 Демо-режим (без ключа)</button>
+      <p style="font-size:11px;color:var(--muted);margin-top:8px;">Заготовленные ответы для знакомства с интерфейсом</p>
+    </div>
   </div>
 </div>
 
@@ -466,6 +470,22 @@ const TACTICS = {
   }
 };
 
+// ── DEMO RESPONSES ────────────────────────────────────────────────────────────
+const DEMO_OPENINGS = [
+  "Хорошо, что вы вышли на связь. Ситуация критическая — мне нужны факты, не отговорки. Что конкретно произошло и что уже сделано?",
+  "Я жду объяснений. Это недопустимо — подобного не должно было случиться. Что вы намерены делать прямо сейчас?",
+  "У нас серьёзная проблема. Я уже получил звонки сверху. Мне нужен чёткий план — немедленно.",
+];
+const DEMO_REPLIES = [
+  { reply: "Понятно. Но этого недостаточно. Мне нужны конкретные сроки и имена ответственных — иначе я эскалирую наверх.", feedback: { type: "tip", text: "Хорошее начало, но добавьте конкретику: сроки и ответственных." }, hint: "Назовите точный дедлайн и кто персонально отвечает за решение.", score: { control: 5, clarity: 5, empathy: 5, authority: 5 } },
+  { reply: "Звучит убедительно, но я видел подобные обещания раньше. Что гарантирует, что на этот раз будет иначе?", feedback: { type: "good", text: "Хорошо — вы взяли инициативу и предложили конкретный план." }, hint: "Подкрепите слова данными или прецедентом из прошлого опыта.", score: { control: 6, clarity: 7, empathy: 5, authority: 6 } },
+  { reply: "Хорошо. Допустим, я принимаю этот план. Но что если ситуация выйдет из-под контроля? Кто несёт ответственность?", feedback: { type: "good", text: "Отличная работа с возражением — вы держите позицию уверенно." }, hint: "Чётко разграничьте зоны ответственности и предложите точку контроля.", score: { control: 7, clarity: 7, empathy: 6, authority: 7 } },
+  { reply: "Ладно, я слышу вас. Давайте зафиксируем договорённости. Но учтите — я буду проверять каждый шаг.", feedback: { type: "good", text: "Превосходно — вы деэскалировали напряжение и сохранили авторитет." }, hint: "Предложите конкретный формат контроля: когда, как и кто отчитывается.", score: { control: 8, clarity: 8, empathy: 7, authority: 8 } },
+  { reply: "Это разумно. Я готов поддержать ваш подход при условии выполнения сроков. Держите меня в курсе.", feedback: { type: "good", text: "Отличное завершение — вы достигли конструктивного соглашения." }, hint: "Завершите переговоры фиксацией договорённостей в письменном виде.", score: { control: 8, clarity: 9, empathy: 8, authority: 8 } },
+];
+let demoTurn = 0;
+let isDemoMode = false;
+
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let state = {
   apiKey: '',
@@ -498,7 +518,14 @@ document.getElementById('saveApiKey').addEventListener('click', () => {
   const key = document.getElementById('apiKeyInput').value.trim();
   if (!key.startsWith('sk-')) { alert('Введите корректный ключ (начинается с sk-)'); return; }
   state.apiKey = key;
+  isDemoMode = false;
   sessionStorage.setItem('anthropicKey', key);
+  document.getElementById('apiModal').classList.add('hidden');
+});
+
+document.getElementById('demoMode').addEventListener('click', () => {
+  isDemoMode = true;
+  state.apiKey = 'demo';
   document.getElementById('apiModal').classList.add('hidden');
 });
 
@@ -751,6 +778,17 @@ ${isOpening ? 'Это начало переговоров. Сгенерируй 
 }
 
 async function callApi(systemPrompt, userContent) {
+  if (isDemoMode) {
+    await new Promise(r => setTimeout(r, 900 + Math.random() * 600));
+    if (!userContent) {
+      demoTurn = 0;
+      const opening = DEMO_OPENINGS[Math.floor(Math.random() * DEMO_OPENINGS.length)];
+      return { reply: opening, feedback: { type: "tip", text: "Демо-режим активен. Введите любой ответ." }, hint: "Захватите инициативу — первым назовите план действий.", score: { control: 0, clarity: 0, empathy: 0, authority: 0 } };
+    }
+    const r = DEMO_REPLIES[Math.min(demoTurn, DEMO_REPLIES.length - 1)];
+    demoTurn++;
+    return r;
+  }
   const messages = userContent ? [{ role: "user", content: userContent }] : [{ role: "user", content: "Начни переговоры" }];
 
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -945,6 +983,19 @@ async function showResults() {
   // Generate verdict and recs via AI
   document.getElementById('verdictText').textContent = 'Генерация оценки...';
   document.getElementById('recsList').innerHTML = '<div class="rec-item" style="color:var(--muted)">Анализ диалога...</div>';
+
+  if (isDemoMode) {
+    const verdicts = ['Ситуация под угрозой, нужна проработка', 'Неплохо, но позиция требует усиления', 'Хороший результат, есть точки роста', 'Отличное управление кризисом'];
+    const vi = total < 45 ? 0 : total < 65 ? 1 : total < 80 ? 2 : 3;
+    document.getElementById('verdictText').textContent = verdicts[vi] + ` (${state.difficulty.label} пройден в демо-режиме).`;
+    document.getElementById('recsList').innerHTML = [
+      '💡 Захватывайте инициативу первым — называйте план до того, как оппонент начнёт давить',
+      '🎯 Фиксируйте конкретные сроки и ответственных в каждой реплике',
+      '🤝 Разграничивайте зоны ответственности — без размытых формулировок',
+      '📊 Подкрепляйте позицию данными и фактами, а не общими словами',
+    ].map(r => `<div class="rec-item">${r}</div>`).join('');
+    return;
+  }
 
   try {
     const history = state.messages.map(m => `${m.role === 'ai' ? state.counterpart : 'Пользователь'}: ${m.content}`).join('\n');
