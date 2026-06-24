@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crisis Negotiation Simulator</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3350;
+    --accent: #4f6ef7;
+    --accent2: #7c5cfc;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --text: #e8eaf6;
+    --muted: #8890b0;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+
+  /* ── SETUP WIZARD ── */
+  #setup { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px; }
+  .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
+  .logo-icon { width: 44px; height: 44px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .logo-text h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .logo-text p { font-size: 13px; color: var(--muted); }
+
+  .step-indicator { display: flex; align-items: center; gap: 8px; margin-bottom: 36px; }
+  .step-dot { width: 32px; height: 32px; border-radius: 50%; background: var(--surface2); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--muted); transition: all .3s; }
+  .step-dot.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-dot.done { background: var(--green); border-color: var(--green); color: #fff; }
+  .step-line { flex: 1; height: 2px; background: var(--border); transition: background .3s; }
+  .step-line.done { background: var(--green); }
+  .step-label { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+  .step-section { display: none; }
+  .step-section.active { display: block; }
+  .step-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .step-subtitle { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+
+  /* Scenario cards */
+  .scenario-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 600px) { .scenario-grid { grid-template-columns: 1fr; } }
+  .scenario-card { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 16px 18px; cursor: pointer; transition: all .2s; position: relative; }
+  .scenario-card:hover { border-color: var(--accent); background: var(--surface2); }
+  .scenario-card.selected { border-color: var(--accent); background: rgba(79,110,247,.1); }
+  .sc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .sc-num { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: 1px; }
+  .sc-badge { font-size: 10px; font-weight: 700; letter-spacing: .5px; padding: 3px 8px; border-radius: 20px; }
+  .badge-critical { background: rgba(239,68,68,.15); color: var(--red); }
+  .badge-high { background: rgba(234,179,8,.15); color: var(--yellow); }
+  .sc-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .sc-brief { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* Role cards */
+  .role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 600px) { .role-grid { grid-template-columns: 1fr; } }
+  .role-card { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 20px; cursor: pointer; transition: all .2s; text-align: center; }
+  .role-card:hover { border-color: var(--accent); background: var(--surface2); }
+  .role-card.selected { border-color: var(--accent); background: rgba(79,110,247,.1); }
+  .role-icon { font-size: 32px; margin-bottom: 12px; }
+  .role-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .role-desc { font-size: 12px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+  .role-counterpart { font-size: 12px; font-weight: 600; color: var(--accent); background: rgba(79,110,247,.1); border-radius: 8px; padding: 6px 10px; }
+
+  /* Difficulty cards */
+  .diff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 600px) { .diff-grid { grid-template-columns: 1fr; } }
+  .diff-card { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 22px 18px; cursor: pointer; transition: all .2s; }
+  .diff-card:hover { background: var(--surface2); }
+  .diff-card.selected { background: rgba(79,110,247,.08); }
+  .diff-card.easy { border-color: var(--border); } .diff-card.easy.selected { border-color: var(--green); }
+  .diff-card.medium { border-color: var(--border); } .diff-card.medium.selected { border-color: var(--yellow); }
+  .diff-card.hard { border-color: var(--border); } .diff-card.hard.selected { border-color: var(--red); }
+  .diff-label { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+  .diff-behavior { font-size: 12px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+  .diff-meta { display: flex; justify-content: space-between; font-size: 12px; }
+  .diff-turns { color: var(--accent); font-weight: 600; }
+  .diff-audience { color: var(--muted); }
+
+  .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border: none; border-radius: 10px; padding: 13px 28px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .2s; margin-top: 28px; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-primary:hover { opacity: .88; }
+  .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 20px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all .2s; }
+  .btn-secondary:hover { background: var(--border); }
+  .step-nav { display: flex; gap: 12px; align-items: center; }
+
+  /* ── NEGOTIATION SCREEN ── */
+  #negotiation { display: none; height: 100vh; display: flex; flex-direction: column; }
+  #negotiation.hidden { display: none !important; }
+
+  .neg-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+  .counterpart-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .counterpart-info { flex: 1; }
+  .counterpart-name { font-size: 15px; font-weight: 700; }
+  .counterpart-role { font-size: 12px; color: var(--muted); }
+  .neg-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; letter-spacing: .3px; }
+  .tag-scenario { background: rgba(79,110,247,.15); color: #a0b0ff; }
+  .tag-role { background: rgba(124,92,252,.15); color: #b8a0ff; }
+  .tag-diff-easy { background: rgba(34,197,94,.15); color: var(--green); }
+  .tag-diff-medium { background: rgba(234,179,8,.15); color: var(--yellow); }
+  .tag-diff-hard { background: rgba(239,68,68,.15); color: var(--red); }
+  .progress-wrap { display: flex; align-items: center; gap: 10px; }
+  .progress-text { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .progress-bar-outer { width: 80px; height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .progress-bar-inner { height: 100%; background: var(--accent); border-radius: 4px; transition: width .4s; }
+
+  .crisis-banner { padding: 10px 24px; font-size: 13px; font-weight: 500; flex-shrink: 0; line-height: 1.5; }
+  .crisis-banner.easy { background: rgba(34,197,94,.1); border-bottom: 1px solid rgba(34,197,94,.2); color: #86efac; }
+  .crisis-banner.medium { background: rgba(234,179,8,.1); border-bottom: 1px solid rgba(234,179,8,.2); color: #fde68a; }
+  .crisis-banner.hard { background: rgba(239,68,68,.1); border-bottom: 1px solid rgba(239,68,68,.2); color: #fca5a5; }
+
+  .neg-body { flex: 1; display: flex; overflow: hidden; }
+  .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .messages { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .msg { display: flex; flex-direction: column; max-width: 70%; }
+  .msg.ai { align-self: flex-start; }
+  .msg.user { align-self: flex-end; align-items: flex-end; }
+  .msg-bubble { padding: 12px 16px; border-radius: 14px; font-size: 14px; line-height: 1.6; }
+  .msg.ai .msg-bubble { background: var(--surface2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .msg.user .msg-bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+  .msg-meta { font-size: 11px; color: var(--muted); margin-top: 4px; padding: 0 4px; }
+
+  .feedback-bubble { margin-top: 8px; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5; border-left: 3px solid; }
+  .feedback-bubble.good { background: rgba(34,197,94,.08); border-color: var(--green); color: #86efac; }
+  .feedback-bubble.warn { background: rgba(234,179,8,.08); border-color: var(--yellow); color: #fde68a; }
+  .feedback-bubble.tip { background: rgba(79,110,247,.08); border-color: var(--accent); color: #a0b0ff; }
+
+  .hint-bar { background: var(--surface); border-top: 1px solid var(--border); padding: 10px 20px; font-size: 13px; color: var(--muted); display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0; line-height: 1.5; }
+  .hint-bar span { color: var(--accent); font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+  .hint-bar.hidden-hint { display: none; }
+
+  .input-area { background: var(--surface); border-top: 1px solid var(--border); padding: 14px 20px; flex-shrink: 0; }
+  .input-row { display: flex; gap: 10px; align-items: flex-end; }
+  .input-row textarea { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; color: var(--text); font-size: 14px; resize: none; min-height: 48px; max-height: 120px; font-family: inherit; outline: none; transition: border-color .2s; line-height: 1.5; }
+  .input-row textarea:focus { border-color: var(--accent); }
+  .input-row textarea::placeholder { color: var(--muted); }
+  .send-btn { background: var(--accent); border: none; border-radius: 10px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: opacity .2s; color: #fff; }
+  .send-btn:hover { opacity: .85; }
+  .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .input-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .action-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; font-size: 12px; color: var(--muted); cursor: pointer; transition: all .2s; font-family: inherit; }
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .action-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(79,110,247,.08); }
+
+  /* Tactics panel */
+  .tactics-panel { width: 0; background: var(--surface); border-left: 1px solid var(--border); overflow: hidden; transition: width .3s; flex-shrink: 0; }
+  .tactics-panel.open { width: 300px; }
+  .tactics-inner { width: 300px; padding: 20px; height: 100%; overflow-y: auto; }
+  .tactics-inner h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+  .tactic-item { margin-bottom: 14px; padding: 12px; background: var(--surface2); border-radius: 10px; border: 1px solid var(--border); }
+  .tactic-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+  .tactic-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .avoid-block { margin-top: 16px; padding: 12px; background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.2); border-radius: 10px; }
+  .avoid-title { font-size: 12px; font-weight: 700; color: var(--red); margin-bottom: 6px; }
+  .avoid-text { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* Typing indicator */
+  .typing { display: flex; align-items: center; gap: 6px; padding: 14px 16px; background: var(--surface2); border-radius: 14px; border: 1px solid var(--border); border-bottom-left-radius: 4px; width: fit-content; }
+  .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: bounce 1.2s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: .2s; }
+  .typing-dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes bounce { 0%,80%,100% { transform: translateY(0); opacity: .5; } 40% { transform: translateY(-5px); opacity: 1; } }
+
+  /* ── RESULTS SCREEN ── */
+  #results { display: none; max-width: 700px; margin: 0 auto; padding: 40px 20px 80px; }
+  #results.visible { display: block; }
+  .results-title { font-size: 28px; font-weight: 800; margin-bottom: 6px; }
+  .results-subtitle { font-size: 14px; color: var(--muted); margin-bottom: 36px; }
+  .score-circle-wrap { display: flex; justify-content: center; margin-bottom: 36px; }
+  .score-circle { width: 160px; height: 160px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 6px solid; }
+  .score-circle.green { border-color: var(--green); box-shadow: 0 0 40px rgba(34,197,94,.25); }
+  .score-circle.yellow { border-color: var(--yellow); box-shadow: 0 0 40px rgba(234,179,8,.25); }
+  .score-circle.red { border-color: var(--red); box-shadow: 0 0 40px rgba(239,68,68,.25); }
+  .score-num { font-size: 52px; font-weight: 800; line-height: 1; }
+  .score-circle.green .score-num { color: var(--green); }
+  .score-circle.yellow .score-num { color: var(--yellow); }
+  .score-circle.red .score-num { color: var(--red); }
+  .score-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .criteria-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+  .criterion { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .criterion-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; font-weight: 500; }
+  .criterion-name { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+  .crit-bar-outer { height: 6px; background: var(--border); border-radius: 6px; overflow: hidden; }
+  .crit-bar-inner { height: 100%; border-radius: 6px; transition: width .8s .3s; }
+  .crit-score { font-size: 13px; font-weight: 700; margin-top: 6px; }
+
+  .verdict-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; }
+  .verdict-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+  .verdict-text { font-size: 14px; color: var(--muted); line-height: 1.6; font-style: italic; }
+
+  .recs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 28px; }
+  .recs-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+  .rec-item { font-size: 14px; line-height: 1.6; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .rec-item:last-child { border-bottom: none; }
+
+  .results-actions { display: flex; gap: 12px; }
+
+  /* API key modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .modal-overlay.hidden { display: none; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px; max-width: 440px; width: 90%; }
+  .modal h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .modal p { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+  .modal input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; color: var(--text); font-size: 14px; outline: none; font-family: inherit; transition: border-color .2s; margin-bottom: 16px; }
+  .modal input:focus { border-color: var(--accent); }
+  .modal-note { font-size: 11px; color: var(--muted); margin-top: -8px; margin-bottom: 20px; }
+
+  /* Loading spinner */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+</style>
+</head>
+<body>
+
+<!-- API KEY MODAL -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h2>🔑 API-ключ Anthropic</h2>
+    <p>Для работы симулятора нужен ключ Anthropic API. Он хранится только в памяти браузера и не передаётся на сервер.</p>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." />
+    <p class="modal-note">Получить ключ: console.anthropic.com → API Keys</p>
+    <button class="btn-primary" id="saveApiKey">Начать</button>
+  </div>
+</div>
+
+<!-- SETUP WIZARD -->
+<div id="setup">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div class="logo-text">
+      <h1>Crisis Negotiation Simulator</h1>
+      <p>Тренажёр кризисных переговоров для руководителей телеком/IT</p>
+    </div>
+  </div>
+
+  <div class="step-indicator">
+    <div class="step-dot active" id="dot1">1</div>
+    <div class="step-line" id="line1"></div>
+    <div class="step-dot" id="dot2">2</div>
+    <div class="step-line" id="line2"></div>
+    <div class="step-dot" id="dot3">3</div>
+    <span class="step-label" id="stepLabel">Выберите сценарий</span>
+  </div>
+
+  <!-- STEP 1: Scenario -->
+  <div class="step-section active" id="step1">
+    <div class="step-title">Выберите кризисный сценарий</div>
+    <div class="step-subtitle">8 реальных ситуаций из практики телеком и IT-компаний</div>
+    <div class="scenario-grid" id="scenarioGrid"></div>
+    <div class="step-nav">
+      <button class="btn-primary" id="toStep2" disabled>Далее →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Role -->
+  <div class="step-section" id="step2">
+    <div class="step-title">Выберите роль в переговорах</div>
+    <div class="step-subtitle">Определите вашу позицию и кто будет вашим собеседником</div>
+    <div class="role-grid" id="roleGrid"></div>
+    <div class="step-nav">
+      <button class="btn-secondary" id="backToStep1">← Назад</button>
+      <button class="btn-primary" id="toStep3" disabled>Далее →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Difficulty -->
+  <div class="step-section" id="step3">
+    <div class="step-title">Уровень сложности</div>
+    <div class="step-subtitle">Определяет поведение собеседника и длину сессии</div>
+    <div class="diff-grid" id="diffGrid"></div>
+    <div class="step-nav">
+      <button class="btn-secondary" id="backToStep2">← Назад</button>
+      <button class="btn-primary" id="startSession" disabled>
+        Начать переговоры
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- NEGOTIATION SCREEN -->
+<div id="negotiation" class="hidden">
+  <div class="neg-header">
+    <div class="counterpart-avatar" id="cpAvatar">👤</div>
+    <div class="counterpart-info">
+      <div class="counterpart-name" id="cpName">—</div>
+      <div class="counterpart-role" id="cpRole">—</div>
+    </div>
+    <div class="neg-tags" id="negTags"></div>
+    <div class="progress-wrap">
+      <span class="progress-text" id="progressText">0 / 0</span>
+      <div class="progress-bar-outer">
+        <div class="progress-bar-inner" id="progressBar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+  <div class="crisis-banner" id="crisisBanner"></div>
+
+  <div class="neg-body">
+    <div class="chat-area">
+      <div class="messages" id="messages"></div>
+      <div class="hint-bar hidden-hint" id="hintBar">
+        <span>💡</span>
+        <span id="hintText"></span>
+      </div>
+      <div class="input-area">
+        <div class="input-row">
+          <textarea id="userInput" placeholder="Ваш ответ..." rows="1"></textarea>
+          <button class="send-btn" id="sendBtn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <div class="input-actions">
+          <button class="action-btn" id="toggleHint">💡 Подсказка</button>
+          <button class="action-btn" id="toggleTactics">🎯 Тактики</button>
+          <button class="action-btn" style="margin-left:auto;color:var(--red);border-color:rgba(239,68,68,.3)" id="endSession">Завершить</button>
+        </div>
+      </div>
+    </div>
+    <div class="tactics-panel" id="tacticsPanel">
+      <div class="tactics-inner" id="tacticsInner"></div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS SCREEN -->
+<div id="results">
+  <div class="results-title">📊 Итоги переговоров</div>
+  <div class="results-subtitle" id="resultsSubtitle"></div>
+  <div class="score-circle-wrap">
+    <div class="score-circle" id="scoreCircle">
+      <div class="score-num" id="scoreNum">—</div>
+      <div class="score-label">из 100</div>
+    </div>
+  </div>
+  <div class="criteria-grid" id="criteriaGrid"></div>
+  <div class="verdict-card">
+    <h3>Вердикт</h3>
+    <div class="verdict-text" id="verdictText">Генерация оценки...</div>
+  </div>
+  <div class="recs-card">
+    <h3>Персональные рекомендации</h3>
+    <div id="recsList"></div>
+  </div>
+  <div class="results-actions">
+    <button class="btn-primary" id="restartBtn">Новая сессия</button>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const SCENARIOS = [
+  { id: 1, title: "Авария сети", level: "Критично", brief: "50 000 абонентов отключены, CEO требует срочный отчёт через 15 минут", icon: "🔴" },
+  { id: 2, title: "Утечка данных клиентов", level: "Критично", brief: "120 000 записей клиентов скомпрометированы, на связи СМИ и регулятор", icon: "🔒" },
+  { id: 3, title: "Срыв критичного дедлайна", level: "Критично", brief: "Биллинговая система запаздывает на 3 недели, штраф 15 млн тенге", icon: "⏰" },
+  { id: 4, title: "Поставщик отказывает", level: "Высокий", brief: "Cisco задерживает ключевое оборудование на 6 недель", icon: "📦" },
+  { id: 5, title: "Забастовка персонала", level: "Критично", brief: "40% технических специалистов готовы выйти на забастовку", icon: "✊" },
+  { id: 6, title: "Проверка регулятора", level: "Высокий", brief: "МЦРИАП инициировал проверку, предварительный штраф 50 млн тенге", icon: "🏛️" },
+  { id: 7, title: "Кризис в прессе", level: "Высокий", brief: "Журналистское расследование о завышенных тарифах, акции −3%", icon: "📰" },
+  { id: 8, title: "Экстренный разрез бюджета", level: "Высокий", brief: "Правление требует сократить CAPEX на 30% за 2 недели", icon: "💸" },
+];
+
+const ROLES = [
+  {
+    id: "peer",
+    icon: "🤝",
+    title: "Равный руководитель",
+    desc: "Горизонтальные переговоры между руководителями одного уровня",
+    counterparts: [
+      "ИТ-директор смежного дивизиона", "CISO компании",
+      "HR-директор", "PR-директор",
+      "Директор по операциям", "CFO",
+      "Директор клиентского сервиса", "CDO"
+    ]
+  },
+  {
+    id: "subordinate",
+    icon: "👇",
+    title: "Подчинённый",
+    desc: "Вертикальные переговоры вниз по иерархии",
+    counterparts: [
+      "Начальник дежурной смены NOC", "Тимлид внедрения",
+      "Пресс-секретарь", "Руководитель тендерного отдела",
+      "Председатель профсоюза", "Начальник юридического отдела",
+      "Главный редактор корпоративных коммуникаций", "Финансовый контролер"
+    ]
+  },
+  {
+    id: "external",
+    icon: "🌐",
+    title: "Внешняя сторона",
+    desc: "Клиент, регулятор, СМИ, партнёр или поставщик",
+    counterparts: [
+      "Операционный директор крупного B2B-клиента", "Представитель МЦРИАП",
+      "ИТ-директор корпоративного клиента", "Региональный директор Cisco",
+      "Независимый представитель профсоюза", "Главный юрисконсульт МЦРИАП",
+      "Главный редактор делового издания", "Председатель инвестиционного комитета"
+    ]
+  }
+];
+
+const DIFFICULTIES = [
+  { id: "easy", label: "🟢 Лёгкий", behavior: "Конструктивен, слышит аргументы, настроен на диалог. Поддерживает профессиональный тон.", turns: 6, audience: "Начинающий руководитель", cls: "easy", tagCls: "tag-diff-easy" },
+  { id: "medium", label: "🟡 Средний", behavior: "Скептичен, давит, имеет скрытые интересы. Требует доказательств и конкретных цифр.", turns: 8, audience: "Опытный руководитель", cls: "medium", tagCls: "tag-diff-medium" },
+  { id: "hard", label: "🔴 Жёсткий", behavior: "Агрессия, манипуляции, ультиматумы, блеф. Нарушает логику диалога, переходит на личности.", turns: 10, audience: "Антикризисный эксперт", cls: "hard", tagCls: "tag-diff-hard" },
+];
+
+const TACTICS = {
+  1: { // Network outage
+    peer: ["Захватить инициативу — первым назвать план восстановления", "Зафиксировать временные рамки — конкретный дедлайн снижает панику", "Разграничить зоны ответственности — чётко, без размытых формулировок", "Управлять эскалацией — предложить единую точку коммуникации", "Показать уже сделанное — перечислить конкретные шаги"],
+    subordinate: ["Делегировать чётко — задача, срок, ответственный", "Требовать статус каждые 15 минут — регулярный ритм отчётности", "Устранить блокеры — спросить, что мешает выполнению", "Удерживать фокус на восстановлении, не разборе полётов", "Поддержать моральный дух — признать нагрузку команды"],
+    external: ["Признать проблему публично — без отрицания факта", "Назвать план действий — до того, как клиент потребует", "Дать персональный контакт для связи — снижает тревогу", "Зафиксировать компенсацию — конкретно, не 'рассмотрим'", "Управлять ожиданиями — лучше назвать худший сценарий заранее"],
+    avoid: "Защитной позиции, обещаний без сроков, споров о причинах во время аварии."
+  },
+  2: { // Data breach
+    peer: ["Оценить совместные риски — вы оба отвечаете перед советом", "Разделить поток коммуникаций — кто говорит с регулятором, кто с прессой", "Согласовать единую версию событий — до выхода в эфир", "Создать кризисный штаб — с представителями обеих сторон", "Зафиксировать протокол в письменном виде — для защиты обоих"],
+    subordinate: ["Дать чёткий мандат — что сотрудник может говорить публично", "Изолировать утечку — технически и коммуникационно", "Собрать факты за 2 часа — не домыслы, только верифицированные данные", "Обеспечить юридическое прикрытие — привлечь юристов немедленно", "Выстроить хронологию — для регулятора и для себя"],
+    external: ["Признать факт, ограничить масштаб — назвать границы инцидента", "Опередить с планом действий — до ультиматума", "Разделить ответственность и реакцию — акцент на скорости", "Управлять темпом — один вопрос, один полный ответ", "Найти общий интерес — регулятор хочет защиты граждан"],
+    avoid: "Технических деталей без выводов, невыполнимых обещаний, скрывать вторичные инциденты."
+  },
+  3: { // Deadline miss
+    peer: ["Признать задержку первым — до того, как другая сторона начнёт обвинять", "Предложить компенсирующий план — что ускорим, что перенесём", "Запросить ресурсы — конкретно, с обоснованием ROI", "Зафиксировать новый дедлайн — реалистичный, защищённый буфером", "Показать прогресс — что уже сделано и что осталось"],
+    subordinate: ["Разобрать корневую причину — без поиска виноватых", "Перераспределить нагрузку — в текущей команде", "Запросить помощь смежных команд — конкретно и срочно", "Дать ежедневный статус — короткие апдейты снижают тревогу", "Пересогласовать приоритеты — что отложить ради дедлайна"],
+    external: ["Уведомить заранее — хуже, если клиент узнает сам", "Назвать новый срок — реалистично, не оптимистично", "Предложить временное решение — пока система не готова", "Взять личную ответственность — не перекладывать на команду", "Зафиксировать договорённости письменно — для юридической защиты"],
+    avoid: "Размытых обещаний, перекладывания вины, ухода от конкретики по срокам."
+  },
+  4: { // Supplier delay
+    peer: ["Оценить цепочку зависимостей — что конкретно блокируется", "Исследовать альтернативных поставщиков вместе", "Переоценить приоритеты проектов — что можно перенести", "Договориться о распределении рисков — кто несёт потери", "Зафиксировать эскалацию к поставщику — через обе стороны"],
+    subordinate: ["Запросить детальный план от поставщика", "Проверить складские резервы — может быть временное решение", "Ускорить альтернативную закупку — запустить тендер немедленно", "Пересмотреть график проекта — с учётом реального срока", "Уведомить все зависимые проекты — заранее, не в последний момент"],
+    external: ["Потребовать компенсацию за задержку — со ссылкой на контракт", "Запросить альтернативное оборудование — у самого Cisco", "Привлечь регионального менеджера — эскалировать на уровень выше", "Зафиксировать SLA-нарушение письменно — для претензии", "Предложить совместное решение — показать готовность работать"],
+    avoid: "Принятия задержки без альтернатив, ухода от письменных гарантий, игнорирования зависимых проектов."
+  },
+  5: { // Strike
+    peer: ["Признать системность проблемы — не единичный инцидент", "Разделить тактические и стратегические меры", "Запросить поддержку HR и юристов", "Согласовать коммуникационную стратегию с персоналом", "Оценить операционный риск — сколько продержимся без техников"],
+    subordinate: ["Выслушать требования полностью — без перебивания", "Отделить требования выполнимые от невыполнимых", "Предложить временные меры — пока идут переговоры", "Зафиксировать протокол переговоров", "Не давить и не угрожать — только диалог"],
+    external: ["Признать легитимность требований — не отрицать проблему", "Предложить переговоры без ультиматумов", "Назвать конкретные шаги по улучшению условий", "Запросить паузу перед забастовкой — для переговоров", "Привлечь независимого медиатора"],
+    avoid: "Угроз увольнением, игнорирования требований, публичных конфликтов в прессе."
+  },
+  6: { // Regulator
+    peer: ["Согласовать единую позицию компании", "Распределить роли на встрече с регулятором", "Подготовить документацию совместно", "Оценить юридическую позицию с юристами", "Договориться о делегировании полномочий"],
+    subordinate: ["Собрать все документы за 24 часа", "Обеспечить доступ регулятора к запрошенным данным", "Провести внутренний аудит до официального визита", "Подготовить команду к вопросам регулятора", "Зафиксировать все коммуникации с регулятором письменно"],
+    external: ["Демонстрировать полное сотрудничество", "Признать нарушения, если они есть — честность снижает штраф", "Предложить план устранения нарушений", "Запросить разумный срок для исправления", "Привлечь опытного юриста по регуляторным вопросам"],
+    avoid: "Сокрытия информации, юридических угроз регулятору, затягивания процесса."
+  },
+  7: { // Press crisis
+    peer: ["Согласовать единственного спикера от компании", "Подготовить Q&A — ответы на острые вопросы", "Оценить факты публикации — что правда, что нет", "Договориться о времени публичного ответа", "Рассмотреть превентивное заявление"],
+    subordinate: ["Запретить комментарии без согласования", "Собрать все факты для проверки публикации", "Подготовить пресс-релиз с позицией компании", "Мониторить социальные сети в режиме реального времени", "Выйти на редакцию для уточнения фактов"],
+    external: ["Не уклоняться от разговора — молчание хуже", "Признать ошибки — если они были", "Предложить эксклюзив на правильную версию истории", "Показать данные, опровергающие обвинения", "Пригласить журналиста на открытый брифинг"],
+    avoid: "Угроз судебными исками в первой реакции, отказа от комментариев, атаки на журналиста."
+  },
+  8: { // Budget cut
+    peer: ["Защитить стратегические инвестиции — показать ROI", "Предложить альтернативные статьи для сокращения", "Согласовать приоритеты на 12 месяцев вперёд", "Оценить влияние сокращений на операционный риск", "Найти компромисс — частичные сокращения с пересмотром в Q3"],
+    subordinate: ["Запросить детальный анализ по каждой статье", "Выявить статьи с нулевым влиянием на операции", "Предложить оптимизацию без сокращения производительности", "Ранжировать CAPEX по бизнес-критичности", "Подготовить сценарный анализ — что будет при −20%, −30%, −40%"],
+    external: ["Показать влияние сокращений на SLA", "Предложить реструктуризацию контракта — не расторжение", "Запросить отсрочку платежей — при сохранении объёма", "Привязать решение к KPI компании — дать правлению метрики", "Предложить альтернативную схему финансирования"],
+    avoid: "Принятия сокращений без анализа последствий, защиты всего бюджета без приоритизации, игнорирования финансовых ограничений правления."
+  }
+};
+
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let state = {
+  apiKey: '',
+  scenario: null,
+  role: null,
+  difficulty: null,
+  counterpart: '',
+  messages: [], // {role, content, feedback, hint, scores}
+  scores: { control: [], clarity: [], empathy: [], authority: [] },
+  maxTurns: 6,
+  turnCount: 0,
+  sessionEnded: false,
+};
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  renderScenarios();
+  renderDifficulties();
+  bindSetupEvents();
+  bindNegEvents();
+  showApiModal();
+});
+
+function showApiModal() {
+  const saved = sessionStorage.getItem('anthropicKey');
+  if (saved) { state.apiKey = saved; document.getElementById('apiModal').classList.add('hidden'); }
+}
+
+document.getElementById('saveApiKey').addEventListener('click', () => {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key.startsWith('sk-')) { alert('Введите корректный ключ (начинается с sk-)'); return; }
+  state.apiKey = key;
+  sessionStorage.setItem('anthropicKey', key);
+  document.getElementById('apiModal').classList.add('hidden');
+});
+
+// ── RENDER SETUP ──────────────────────────────────────────────────────────────
+function renderScenarios() {
+  const grid = document.getElementById('scenarioGrid');
+  SCENARIOS.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'scenario-card';
+    card.dataset.idx = i;
+    card.innerHTML = `
+      <div class="sc-header">
+        <span class="sc-num">№${s.id}</span>
+        <span class="sc-badge ${s.level === 'Критично' ? 'badge-critical' : 'badge-high'}">${s.level}</span>
+      </div>
+      <div class="sc-title">${s.icon} ${s.title}</div>
+      <div class="sc-brief">${s.brief}</div>
+    `;
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.scenario = s;
+      document.getElementById('toStep2').disabled = false;
+      renderRoles();
+    });
+    grid.appendChild(card);
+  });
+}
+
+function renderRoles() {
+  const grid = document.getElementById('roleGrid');
+  grid.innerHTML = '';
+  ROLES.forEach((r, ri) => {
+    const cp = state.scenario ? r.counterparts[state.scenario.id - 1] : '—';
+    const card = document.createElement('div');
+    card.className = 'role-card';
+    card.dataset.ri = ri;
+    card.innerHTML = `
+      <div class="role-icon">${r.icon}</div>
+      <div class="role-title">${r.title}</div>
+      <div class="role-desc">${r.desc}</div>
+      <div class="role-counterpart">Собеседник: ${cp}</div>
+    `;
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.role = r;
+      state.counterpart = cp;
+      document.getElementById('toStep3').disabled = false;
+    });
+    grid.appendChild(card);
+  });
+}
+
+function renderDifficulties() {
+  const grid = document.getElementById('diffGrid');
+  DIFFICULTIES.forEach(d => {
+    const card = document.createElement('div');
+    card.className = `diff-card ${d.cls}`;
+    card.innerHTML = `
+      <div class="diff-label">${d.label}</div>
+      <div class="diff-behavior">${d.behavior}</div>
+      <div class="diff-meta">
+        <span class="diff-turns">${d.turns} реплик</span>
+        <span class="diff-audience">${d.audience}</span>
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.difficulty = d;
+      document.getElementById('startSession').disabled = false;
+    });
+    grid.appendChild(card);
+  });
+}
+
+// ── SETUP NAVIGATION ──────────────────────────────────────────────────────────
+function bindSetupEvents() {
+  document.getElementById('toStep2').addEventListener('click', () => goStep(2));
+  document.getElementById('toStep3').addEventListener('click', () => goStep(3));
+  document.getElementById('backToStep1').addEventListener('click', () => goStep(1));
+  document.getElementById('backToStep2').addEventListener('click', () => goStep(2));
+  document.getElementById('startSession').addEventListener('click', startSession);
+}
+
+function goStep(n) {
+  document.querySelectorAll('.step-section').forEach(s => s.classList.remove('active'));
+  document.getElementById(`step${n}`).classList.add('active');
+  [1,2,3].forEach(i => {
+    const dot = document.getElementById(`dot${i}`);
+    dot.classList.toggle('active', i === n);
+    dot.classList.toggle('done', i < n);
+  });
+  [1,2].forEach(i => document.getElementById(`line${i}`).classList.toggle('done', i < n));
+  const labels = ['', 'Выберите сценарий', 'Выберите роль', 'Выберите сложность'];
+  document.getElementById('stepLabel').textContent = labels[n];
+}
+
+// ── SESSION START ──────────────────────────────────────────────────────────────
+async function startSession() {
+  if (!state.apiKey) { showApiModal(); return; }
+
+  state.messages = [];
+  state.scores = { control: [], clarity: [], empathy: [], authority: [] };
+  state.maxTurns = state.difficulty.turns;
+  state.turnCount = 0;
+  state.sessionEnded = false;
+
+  // Build UI
+  document.getElementById('cpAvatar').textContent = state.role.icon;
+  document.getElementById('cpName').textContent = state.counterpart;
+  document.getElementById('cpRole').textContent = `${state.scenario.title} · ${state.role.title}`;
+
+  const tags = document.getElementById('negTags');
+  tags.innerHTML = `
+    <span class="tag tag-scenario">${state.scenario.title}</span>
+    <span class="tag tag-role">${state.role.title}</span>
+    <span class="tag ${state.difficulty.tagCls}">${state.difficulty.label}</span>
+  `;
+
+  const banner = document.getElementById('crisisBanner');
+  banner.className = `crisis-banner ${state.difficulty.cls}`;
+  banner.textContent = `⚠️ ${state.scenario.brief}`;
+
+  document.getElementById('messages').innerHTML = '';
+  document.getElementById('hintBar').classList.add('hidden-hint');
+  document.getElementById('tacticsPanel').classList.remove('open');
+  document.getElementById('toggleTactics').classList.remove('active');
+  document.getElementById('toggleHint').classList.remove('active');
+
+  renderTactics();
+  updateProgress();
+
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('results').classList.remove('visible');
+  const neg = document.getElementById('negotiation');
+  neg.classList.remove('hidden');
+  neg.style.display = 'flex';
+
+  document.getElementById('userInput').value = '';
+  document.getElementById('userInput').disabled = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  // Get opening move from AI
+  await getAiOpening();
+}
+
+// ── TACTICS ──────────────────────────────────────────────────────────────────
+function renderTactics() {
+  const inner = document.getElementById('tacticsInner');
+  const sid = state.scenario.id;
+  const rid = state.role.id;
+  const t = TACTICS[sid] || TACTICS[1];
+  const items = t[rid] || t.peer;
+  const avoid = t.avoid;
+
+  inner.innerHTML = `<h3>🎯 Тактики для этого сценария</h3>`;
+  items.forEach((item, i) => {
+    const [title, ...rest] = item.split(' — ');
+    inner.innerHTML += `
+      <div class="tactic-item">
+        <div class="tactic-title">${i+1}. ${title}</div>
+        ${rest.length ? `<div class="tactic-desc">${rest.join(' — ')}</div>` : ''}
+      </div>
+    `;
+  });
+  inner.innerHTML += `
+    <div class="avoid-block">
+      <div class="avoid-title">⛔ Избегайте</div>
+      <div class="avoid-text">${avoid}</div>
+    </div>
+  `;
+}
+
+// ── NEGOTIATION ───────────────────────────────────────────────────────────────
+function bindNegEvents() {
+  const input = document.getElementById('userInput');
+  const sendBtn = document.getElementById('sendBtn');
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = input.scrollHeight + 'px';
+  });
+  sendBtn.addEventListener('click', sendMessage);
+
+  document.getElementById('toggleHint').addEventListener('click', () => {
+    const bar = document.getElementById('hintBar');
+    const btn = document.getElementById('toggleHint');
+    bar.classList.toggle('hidden-hint');
+    btn.classList.toggle('active');
+  });
+
+  document.getElementById('toggleTactics').addEventListener('click', () => {
+    const panel = document.getElementById('tacticsPanel');
+    const btn = document.getElementById('toggleTactics');
+    panel.classList.toggle('open');
+    btn.classList.toggle('active');
+  });
+
+  document.getElementById('endSession').addEventListener('click', () => {
+    if (state.turnCount > 0 && !state.sessionEnded) endSession();
+  });
+
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    document.getElementById('results').classList.remove('visible');
+    document.getElementById('setup').style.display = 'block';
+    goStep(1);
+  });
+}
+
+function buildSystemPrompt(isOpening = false) {
+  const history = state.messages.map(m => `${m.role === 'ai' ? state.counterpart : 'Пользователь'}: ${m.content}`).join('\n');
+
+  const diffNotes = {
+    easy: "Ты конструктивен и открыт к диалогу. Слышишь аргументы. Задаёшь уточняющие вопросы. Настроен на совместное решение.",
+    medium: "Ты скептичен и давишь на собеседника. У тебя есть скрытые интересы. Требуешь конкретных цифр и доказательств. Иногда перебиваешь.",
+    hard: "Ты агрессивен и манипулятивен. Используешь ультиматумы и блеф. Периодически переходишь на личности. Игнорируешь логику. Намеренно давишь на эмоции."
+  };
+
+  return `Ты — симулятор кризисных переговоров для руководителей в телеком/IT.
+
+Ты играешь роль: ${state.counterpart}.
+Формат переговоров: ${state.role.title} — ${state.role.desc}.
+Кризисная ситуация: ${state.scenario.title}. ${state.scenario.brief}
+Уровень сложности: ${state.difficulty.label}. ${diffNotes[state.difficulty.id]}
+
+${history ? `История диалога:\n${history}\n` : ''}
+${isOpening ? 'Это начало переговоров. Сгенерируй ТОЛЬКО первую реплику (reply). feedback, hint, score — со значениями по умолчанию (feedback type: tip, score: 0).' : ''}
+
+ВАЖНО: Отвечай строго в JSON без markdown, без пояснений вне JSON.
+Формат ответа:
+{
+  "reply": "реплика собеседника (1-3 предложения на русском)",
+  "feedback": {
+    "type": "good | warn | tip",
+    "text": "оценка последней реплики пользователя (1 предложение)"
+  },
+  "hint": "тактический совет для следующего хода пользователя (1 предложение)",
+  "score": {
+    "control": <0-10>,
+    "clarity": <0-10>,
+    "empathy": <0-10>,
+    "authority": <0-10>
+  }
+}`;
+}
+
+async function callApi(systemPrompt, userContent) {
+  const messages = userContent ? [{ role: "user", content: userContent }] : [{ role: "user", content: "Начни переговоры" }];
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": state.apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${resp.status}`);
+  }
+  const data = await resp.json();
+  const text = data.content[0].text.trim();
+  // strip possible markdown fences
+  const clean = text.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '');
+  return JSON.parse(clean);
+}
+
+async function getAiOpening() {
+  const typingEl = addTyping();
+  try {
+    const result = await callApi(buildSystemPrompt(true), null);
+    typingEl.remove();
+    addAiMessage(result.reply, null, result.hint);
+    document.getElementById('hintText').textContent = result.hint || '';
+    setInputEnabled(true);
+  } catch(e) {
+    typingEl.remove();
+    addAiMessage(`⚠️ Ошибка подключения: ${e.message}. Проверьте API-ключ.`, null, null);
+    setInputEnabled(true);
+  }
+}
+
+async function sendMessage() {
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text || state.sessionEnded) return;
+
+  state.turnCount++;
+  input.value = '';
+  input.style.height = 'auto';
+  setInputEnabled(false);
+
+  addUserMessage(text);
+  state.messages.push({ role: 'user', content: text });
+  updateProgress();
+
+  const typingEl = addTyping();
+  try {
+    const result = await callApi(buildSystemPrompt(false), text);
+    typingEl.remove();
+
+    // Record scores
+    if (result.score) {
+      state.scores.control.push(result.score.control || 0);
+      state.scores.clarity.push(result.score.clarity || 0);
+      state.scores.empathy.push(result.score.empathy || 0);
+      state.scores.authority.push(result.score.authority || 0);
+    }
+
+    state.messages.push({ role: 'ai', content: result.reply });
+
+    const isLast = state.turnCount >= state.maxTurns;
+    addAiMessage(result.reply, result.feedback, isLast ? null : result.hint);
+
+    if (!isLast && result.hint) {
+      document.getElementById('hintText').textContent = result.hint;
+      document.getElementById('hintBar').classList.remove('hidden-hint');
+      document.getElementById('toggleHint').classList.add('active');
+    }
+
+    updateProgress();
+
+    if (isLast) {
+      setTimeout(endSession, 1200);
+    } else {
+      setInputEnabled(true);
+    }
+  } catch(e) {
+    typingEl.remove();
+    addAiMessage(`⚠️ Ошибка: ${e.message}`, null, null);
+    setInputEnabled(true);
+  }
+}
+
+async function endSession() {
+  state.sessionEnded = true;
+  setInputEnabled(false);
+  document.getElementById('endSession').disabled = true;
+  showResults();
+}
+
+// ── UI HELPERS ────────────────────────────────────────────────────────────────
+function setInputEnabled(v) {
+  document.getElementById('userInput').disabled = !v;
+  document.getElementById('sendBtn').disabled = !v;
+}
+
+function addTyping() {
+  const msgs = document.getElementById('messages');
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  el.innerHTML = `<div class="typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
+  return el;
+}
+
+function addAiMessage(text, feedback, hint) {
+  const msgs = document.getElementById('messages');
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  let fb = '';
+  if (feedback) {
+    const icons = { good: '✅', warn: '⚠️', tip: '💡' };
+    fb = `<div class="feedback-bubble ${feedback.type}">${icons[feedback.type] || '💡'} ${feedback.text}</div>`;
+  }
+  el.innerHTML = `<div class="msg-bubble">${escHtml(text)}</div>${fb}<div class="msg-meta">${state.counterpart}</div>`;
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addUserMessage(text) {
+  const msgs = document.getElementById('messages');
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.innerHTML = `<div class="msg-bubble">${escHtml(text)}</div><div class="msg-meta">Вы</div>`;
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function updateProgress() {
+  document.getElementById('progressText').textContent = `${state.turnCount} / ${state.maxTurns}`;
+  document.getElementById('progressBar').style.width = `${(state.turnCount / state.maxTurns) * 100}%`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+// ── RESULTS ───────────────────────────────────────────────────────────────────
+async function showResults() {
+  const neg = document.getElementById('negotiation');
+  neg.style.display = 'none';
+
+  const avg = arr => arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : 0;
+  const sc = state.scores;
+  const c = avg(sc.control), cl = avg(sc.clarity), em = avg(sc.empathy), au = avg(sc.authority);
+  const total = Math.round(((c + cl + em + au) / 4) * 10);
+
+  document.getElementById('resultsSubtitle').textContent = `${state.scenario.title} · ${state.role.title} · ${state.difficulty.label}`;
+
+  const circle = document.getElementById('scoreCircle');
+  const num = document.getElementById('scoreNum');
+  num.textContent = total;
+  circle.className = 'score-circle ' + (total >= 75 ? 'green' : total >= 50 ? 'yellow' : 'red');
+
+  const criteria = [
+    { key: 'control', name: 'Контроль ситуации', label: 'Удержание инициативы', val: c },
+    { key: 'clarity', name: 'Ясность позиции', label: 'Чёткость аргументов', val: cl },
+    { key: 'empathy', name: 'Работа с эмоциями', label: 'Деэскалация и эмпатия', val: em },
+    { key: 'authority', name: 'Авторитетность', label: 'Уверенность и убедительность', val: au },
+  ];
+
+  const grid = document.getElementById('criteriaGrid');
+  grid.innerHTML = '';
+  criteria.forEach(cr => {
+    const pct = Math.round(cr.val * 10);
+    const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--yellow)' : 'var(--red)';
+    grid.innerHTML += `
+      <div class="criterion">
+        <div class="criterion-label">${cr.label}</div>
+        <div class="criterion-name">${cr.name}</div>
+        <div class="crit-bar-outer"><div class="crit-bar-inner" style="width:${pct}%;background:${color}"></div></div>
+        <div class="crit-score" style="color:${color}">${pct}%</div>
+      </div>
+    `;
+  });
+
+  document.getElementById('results').classList.add('visible');
+
+  // Generate verdict and recs via AI
+  document.getElementById('verdictText').textContent = 'Генерация оценки...';
+  document.getElementById('recsList').innerHTML = '<div class="rec-item" style="color:var(--muted)">Анализ диалога...</div>';
+
+  try {
+    const history = state.messages.map(m => `${m.role === 'ai' ? state.counterpart : 'Пользователь'}: ${m.content}`).join('\n');
+    const verdictPrompt = `Ты — эксперт по переговорам. Оцени переговорную сессию руководителя.
+
+Сценарий: ${state.scenario.title}. ${state.scenario.brief}
+Роль пользователя: ${state.role.title}
+Собеседник: ${state.counterpart}
+Уровень сложности: ${state.difficulty.label}
+Итоговый балл: ${total}%
+
+Баллы по критериям:
+- Контроль ситуации: ${Math.round(c*10)}%
+- Ясность позиции: ${Math.round(cl*10)}%
+- Работа с эмоциями: ${Math.round(em*10)}%
+- Авторитетность: ${Math.round(au*10)}%
+
+История диалога:
+${history}
+
+Верни JSON:
+{
+  "verdict": "текстовая оценка 1-2 предложения с учётом уровня сложности",
+  "recommendations": ["совет 1 с эмодзи-маркером", "совет 2", "совет 3", "совет 4"]
+}`;
+
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": state.apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 800,
+        messages: [{ role: "user", content: verdictPrompt }]
+      })
+    });
+    const data = await resp.json();
+    const raw = data.content[0].text.trim().replace(/^```json?\s*/i,'').replace(/\s*```$/i,'');
+    const parsed = JSON.parse(raw);
+    document.getElementById('verdictText').textContent = parsed.verdict;
+    document.getElementById('recsList').innerHTML = parsed.recommendations
+      .map(r => `<div class="rec-item">${r}</div>`).join('');
+  } catch(e) {
+    const verdicts = ['Ситуация под угрозой, нужна проработка', 'Неплохо, но позиция требует усиления', 'Хороший результат, есть точки роста', 'Отличное управление кризисом'];
+    const vi = total < 45 ? 0 : total < 65 ? 1 : total < 80 ? 2 : 3;
+    document.getElementById('verdictText').textContent = verdicts[vi] + ` (${state.difficulty.label} пройден).`;
+    document.getElementById('recsList').innerHTML = '<div class="rec-item" style="color:var(--muted)">Не удалось загрузить рекомендации. Проверьте соединение.</div>';
+  }
+}
+</script>
+</body>
+</html>
